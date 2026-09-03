@@ -1,4 +1,48 @@
-# Tasks API
+# Taskly
+
+Production-oriented task management API built with FastAPI.
+
+## Current Status
+
+- FastAPI REST API
+- PostgreSQL persistence
+- Redis caching
+- Docker Compose local environment
+- Health check endpoint
+- CRUD operations for tasks
+
+## DevOps Roadmap
+
+- [ ] Prometheus metrics
+- [ ] Structured JSON logging
+- [ ] Grafana dashboards
+- [ ] Loki log aggregation
+- [ ] Terraform infrastructure
+- [ ] Kubernetes / Amazon EKS deployment
+- [ ] GitHub Actions CI/CD
+- [ ] Monitoring and alerting# Taskly
+
+Production-oriented task management API built with FastAPI.
+
+## Current Status
+
+- FastAPI REST API
+- PostgreSQL persistence
+- Redis caching
+- Docker Compose local environment
+- Health check endpoint
+- CRUD operations for tasks
+
+## DevOps Roadmap
+
+- [ ] Prometheus metrics
+- [ ] Structured JSON logging
+- [ ] Grafana dashboards
+- [ ] Loki log aggregation
+- [ ] Terraform infrastructure
+- [ ] Kubernetes / Amazon EKS deployment
+- [ ] GitHub Actions CI/CD
+- [ ] Monitoring and alerting# Tasks API
 
 A minimal FastAPI task tracker backed by Postgres, with a Redis read-through cache.
 
@@ -187,4 +231,4 @@ dataset file to keep in sync with the app.
 
 If you run `train.py` before any labeled tasks exist, it fails fast with a clear error telling
 you to run `generate_data.py` or create tasks with a `priority` first, rather than crashing
-deep inside pandas/scikit-learn.
+deep inside pandas/scikit-learn
