@@ -4,7 +4,7 @@ import time
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from prometheus_client import Counter, Histogram, make_asgi_app
+from prometheus_client import Counter, Gauge, Histogram, make_asgi_app
 
 import cache
 from database import Base, engine, get_db
@@ -32,6 +32,22 @@ TASKS_CREATED = Counter(
     "tasks_created_total",
     "Total number of tasks created",
 )
+
+ACTIVE_TASKS = Gauge(
+    "active_tasks",
+    "Current number of active tasks",
+)
+
+
+def update_active_tasks(db: Session):
+    """Update the active tasks gauge from the database."""
+    active_count = (
+        db.query(TaskModel)
+        .filter(TaskModel.done.is_(False))
+        .count()
+    )
+
+    ACTIVE_TASKS.set(active_count)
 
 
 # Request metrics middleware
@@ -89,6 +105,7 @@ def list_tasks(db: Session = Depends(get_db)):
     cached = cache.get_cached_tasks()
 
     if cached is not None:
+        update_active_tasks(db)
         return cached
 
     result = [
@@ -97,6 +114,7 @@ def list_tasks(db: Session = Depends(get_db)):
     ]
 
     cache.set_cached_tasks(result)
+    update_active_tasks(db)
 
     return result
 
@@ -112,6 +130,7 @@ def create_task(task: Task, db: Session = Depends(get_db)):
     TASKS_CREATED.inc()
 
     cache.invalidate_task_cache(db_task.id)
+    update_active_tasks(db)
 
     return db_task
 
@@ -159,6 +178,7 @@ def update_task(
     db.refresh(db_task)
 
     cache.invalidate_task_cache(task_id)
+    update_active_tasks(db)
 
     return db_task
 
@@ -180,3 +200,4 @@ def delete_task(
     db.commit()
 
     cache.invalidate_task_cache(task_id)
+    update_active_tasks(db)
