@@ -1,0 +1,44 @@
+groups:
+  - name: taskly-alerts
+    rules:
+
+      - alert: TasklyHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="taskly-api",status=~"4..|5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="taskly-api"}[5m]))
+          ) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+          service: taskly-api
+        annotations:
+          summary: "Taskly API error rate is high"
+          description: "HTTP error rate has exceeded 5% for more than 1 minute."
+
+      - alert: TasklyHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(http_request_duration_seconds_bucket{job="taskly-api"}[5m])
+            )
+          ) > 0.5
+        for: 1m
+        labels:
+          severity: warning
+          service: taskly-api
+        annotations:
+          summary: "Taskly API latency is high"
+          description: "P95 API latency has exceeded 500ms for more than 1 minute."
+
+      - alert: TasklyAPIUnavailable
+        expr: up{job="taskly-api"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: taskly-api
+        annotations:
+          summary: "Taskly API is unavailable"
+          description: "Prometheus cannot scrape the Taskly API."

@@ -1,16 +1,27 @@
 services:
   api:
     build: .
+    command: >
+      opentelemetry-instrument
+      uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg2://tasks:tasks@db:5432/tasks
       REDIS_URL: redis://redis:6379/0
+      OTEL_SERVICE_NAME: taskly-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      tempo:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -49,9 +60,21 @@ services:
       - "9091:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
     depends_on:
       api:
         condition: service_healthy
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    depends_on:
+      - prometheus
 
   grafana:
     image: grafana/grafana:12.1.1
@@ -59,6 +82,42 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
+      - loki
+      - tempo
+
+  loki:
+    image: grafana/loki:3.5.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+
+  alloy:
+    image: grafana/alloy:latest
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
 
 volumes:
   postgres_data:
+  loki_data:
+  tempo_data:
